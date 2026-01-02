@@ -54,12 +54,14 @@ export default function StudentPage() {
 
     return (
         <div className="min-h-screen bg-[#eef2f3] flex flex-col items-center py-[60px] font-[Arial]">
-            <div className="bg-white p-[25px] rounded-[12px] w-[350px] shadow-[0_0_15px_rgba(0,0,0,0.1)] text-center">
-                <h2 className="text-[1.5em] font-bold mb-4">Điểm danh khuôn mặt</h2>
+            <div className="bg-white p-[25px] rounded-[12px] w-[500px] shadow-[0_0_15px_rgba(0,0,0,0.1)] text-center">
+                <div className='flex flex-row justify-between'>
+                    <h2 className="text-[1.5em] font-bold mb-4">Điểm danh khuôn mặt</h2>
+                    <button onClick={handleLogout} className="bg-[#dc3545] text-white px-[20px] py-[10px] rounded-[6px] mb-4 hover:opacity-90">
+                        Đăng xuất
+                    </button>
+                </div>
 
-                <button onClick={handleLogout} className="bg-[#dc3545] text-white px-[20px] py-[10px] rounded-[6px] mb-4 hover:opacity-90">
-                    Đăng xuất
-                </button>
 
                 <div className="text-[22px] font-bold my-[10px] text-red-600 uppercase">
                     {username}

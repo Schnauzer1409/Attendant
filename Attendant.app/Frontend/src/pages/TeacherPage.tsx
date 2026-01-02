@@ -1,8 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { teacherApi } from '../api/teacherApi'; // Đã đổi tên
+import { teacherApi } from '../api/teacherApi';
 import { useCapture } from '../hooks/useCapture';
 import CaptureArea from '../components/CaptureArea';
+import { commonService } from '../services/commonService';
 
 export default function TeacherPage() {
     const [tab, setTab] = useState<'enroll' | 'watermark'>('enroll');
@@ -19,7 +20,8 @@ export default function TeacherPage() {
     useEffect(() => {
         startCamera();
         return () => stopCamera();
-    }, [startCamera, stopCamera, tab]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [tab]);
 
     useEffect(() => {
         if (captureError) setMsg(captureError)
@@ -101,15 +103,22 @@ export default function TeacherPage() {
         }
     };
 
+    const handleLogout = () => {
+        commonService.logout();
+        navigate('/');
+    }
+
     return (
         <div className="min-h-screen bg-[#eef2f3] py-[60px] font-[Arial]">
             <div className="max-w-[450px] mx-auto bg-white p-[25px] rounded-[12px] shadow-lg text-center">
-                <h2 className="text-xl font-bold mb-4">Trang giáo viên</h2>
-                <button onClick={() => { localStorage.clear(); navigate('/'); }} className="bg-[#dc3545] text-white px-4 py-2 rounded-md mb-6">Đăng xuất</button>
-
+                <div className='flex flex-row justify-between'>
+                    <h2 className="text-xl font-bold mb-4">Trang giáo viên</h2>
+                    <button onClick={handleLogout} className="bg-[#dc3545] text-white px-4 py-2 rounded-md mb-6">Đăng xuất</button>
+                </div>
+                
                 <div className="flex gap-2 mb-6 justify-center">
-                    <button onClick={() => setTab('enroll')} className={`px-4 py-2 rounded-md font-bold ${tab === 'enroll' ? 'bg-[#4CAF50] text-white' : 'bg-gray-200'}`}>Enroll Sinh Viên</button>
-                    <button onClick={() => setTab('watermark')} className={`px-4 py-2 rounded-md font-bold ${tab === 'watermark' ? 'bg-[#4CAF50] text-white' : 'bg-gray-200'}`}>Watermark</button>
+                    <button onClick={() => setTab('enroll')} className={`flex-1 px-4 py-2 rounded-md font-bold ${tab === 'enroll' ? 'bg-[#4CAF50] text-white' : 'bg-gray-200'}`}>Enroll Sinh Viên</button>
+                    <button onClick={() => setTab('watermark')} className={`flex-1 px-4 py-2 rounded-md font-bold ${tab === 'watermark' ? 'bg-[#4CAF50] text-white' : 'bg-gray-200'}`}>Watermark</button>
                 </div>
 
                 {tab === 'enroll' ? (
@@ -121,13 +130,13 @@ export default function TeacherPage() {
                             value={studentId} onChange={(e) => setStudentId(e.target.value)}
                         />
                         <CaptureArea videoRef={videoRef} canvasRef={canvasRef} />
-                        <button onClick={handleEnroll} className="w-full bg-[#007bff] text-white py-2 rounded-md font-bold">Chụp ảnh & Enroll</button>
+                        <button onClick={handleEnroll} className="mt-5 w-full bg-[#007bff] text-white py-2 rounded-md font-bold">Chụp ảnh & Enroll</button>
                     </div>
                 ) : (
                     <div>
                         <h3 className="font-bold mb-2">Quản lý Watermark</h3>
                         <CaptureArea videoRef={videoRef} canvasRef={canvasRef} />
-                        <button onClick={captureWatermark} className="w-full bg-[#007bff] text-white py-2 rounded-md font-bold mb-4">Chụp ảnh watermark</button>
+                        <button onClick={captureWatermark} className="mt-5 w-full bg-[#007bff] text-white py-2 rounded-md font-bold mb-4">Chụp ảnh watermark</button>
 
                         <div className="border-t pt-4">
                             <p className="text-sm mb-2 text-gray-500">Hoặc upload file ảnh:</p>
@@ -145,7 +154,7 @@ export default function TeacherPage() {
                     </div>
                 )}
 
-                <p className="mt-4 text-red-600 min-h-[24px] font-medium">{msg}</p>
+                <p className="mt-4 text-red-600 min-h-6 font-medium">{msg}</p>
 
                 <button onClick={clearEncodings} className="mt-10 text-xs text-gray-400 hover:text-red-500 underline transition-colors">Xóa toàn bộ dữ liệu nhận diện</button>
             </div>
