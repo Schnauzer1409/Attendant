@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { teacherApi } from '../api/teacherApi'; // Đã đổi tên
+import { useCapture } from '../hooks/useCapture';
+import CaptureArea from '../components/CaptureArea';
 
 export default function TeacherPage() {
     const [tab, setTab] = useState<'enroll' | 'watermark'>('enroll');
@@ -9,42 +11,26 @@ export default function TeacherPage() {
     const [wmImg, setWmImg] = useState<string | null>(null);
     const [showSetBtn, setShowSetBtn] = useState(false);
 
-    const videoRef = useRef<HTMLVideoElement>(null);
-    const canvasRef = useRef<HTMLCanvasElement>(null);
     const navigate = useNavigate();
 
-    const startCamera = async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
-            if (videoRef.current) videoRef.current.srcObject = stream;
-        } catch (err) {
-            console.error("Camera error:", err);
-        }
-    };
-
-    const stopCamera = () => {
-        const stream = videoRef.current?.srcObject as MediaStream;
-        stream?.getTracks().forEach(track => track.stop());
-    };
+    const { videoRef, canvasRef, isCapturing, captureError, handleCapture, startCamera, stopCamera } = useCapture();
+    
 
     useEffect(() => {
         startCamera();
         return () => stopCamera();
-    }, [tab]);
+    }, [startCamera, stopCamera, tab]);
 
-
+    useEffect(() => {
+        setMsg(captureError)
+    }, [captureError])
 
     // --- LOGIC ENROLL ---
     const handleEnroll = async () => {
         if (!studentId.trim()) return setMsg("Vui lòng nhập MSSV");
-        const video = videoRef.current;
-        const canvas = canvasRef.current;
-        if (!video || !canvas) return;
+        if (isCapturing) return ;
 
-        canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-        canvas.getContext("2d")?.drawImage(video, 0, 0);
-
-        const blob = await new Promise<Blob | null>(res => canvas.toBlob(res, "image/jpeg", 0.9));
+        const blob = await handleCapture();
         if (!blob) return;
 
         const form = new FormData();
@@ -52,7 +38,6 @@ export default function TeacherPage() {
         form.append("file", blob, "enroll.jpg");
 
         try {
-            // Trả ra data trực tiếp luôn
             const data = await teacherApi.enroll(form);
             setMsg(data.msg || data.status);
         } catch (err) {
@@ -83,14 +68,7 @@ export default function TeacherPage() {
     };
 
     const captureWatermark = async () => {
-        const video = videoRef.current;
-        if (!video || video.readyState < 2) return alert("Camera chưa sẵn sàng");
-
-        const canvas = document.createElement("canvas");
-        canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-        canvas.getContext("2d")?.drawImage(video, 0, 0);
-
-        const blob = await new Promise<Blob | null>(res => canvas.toBlob(res, "image/jpeg", 0.9));
+        const blob = await handleCapture();
         if (blob) processWatermarkFlow(blob);
     };
 
@@ -142,13 +120,13 @@ export default function TeacherPage() {
                             className="w-full p-2 border rounded-md mb-4 outline-none border-[#bbb]"
                             value={studentId} onChange={(e) => setStudentId(e.target.value)}
                         />
-                        <video ref={videoRef} autoPlay playsInline className="w-full rounded-md border-2 border-gray-300 mb-4 bg-black" />
+                        <CaptureArea videoRef={videoRef} canvasRef={canvasRef} />
                         <button onClick={handleEnroll} className="w-full bg-[#007bff] text-white py-2 rounded-md font-bold">Chụp ảnh & Enroll</button>
                     </div>
                 ) : (
                     <div>
                         <h3 className="font-bold mb-2">Quản lý Watermark</h3>
-                        <video ref={videoRef} autoPlay playsInline className="w-full rounded-md border-2 border-gray-300 mb-4 bg-black" />
+                        <CaptureArea videoRef={videoRef} canvasRef={canvasRef} />
                         <button onClick={captureWatermark} className="w-full bg-[#007bff] text-white py-2 rounded-md font-bold mb-4">Chụp ảnh watermark</button>
 
                         <div className="border-t pt-4">
@@ -168,7 +146,6 @@ export default function TeacherPage() {
                 )}
 
                 <p className="mt-4 text-red-600 min-h-[24px] font-medium">{msg}</p>
-                <canvas ref={canvasRef} className="hidden" />
 
                 <button onClick={clearEncodings} className="mt-10 text-xs text-gray-400 hover:text-red-500 underline transition-colors">Xóa toàn bộ dữ liệu nhận diện</button>
             </div>

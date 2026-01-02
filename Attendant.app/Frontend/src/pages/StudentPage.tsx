@@ -1,41 +1,28 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { localService } from '../services/localService';
 import { commonService } from '../services/commonService';
 import { useNavigate } from 'react-router-dom';
+import { studentApi } from '../api/studentApi';
+import CaptureArea from '../components/CaptureArea';
+import { useCapture } from '../hooks/useCapture';
 
 export default function StudentPage() {
-    const videoRef = useRef<HTMLVideoElement>(null);
-    const canvasRef = useRef<HTMLCanvasElement>(null);
     const [msg, setMsg] = useState<string>('');
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
-    const username = localService.get("username") || "Sinh viên";
+    const { videoRef, canvasRef, isCapturing, captureError, handleCapture, startCamera, stopCamera } = useCapture();
+
+    useEffect(() => {
+        console.log(captureError)
+    }, [captureError])
 
     useEffect(() => {
         startCamera();
-        return () => stopCamera(); // Cleanup camera khi rời trang
-    }, []);
+        return () => stopCamera();
+    }, [startCamera, stopCamera]);
 
-    const startCamera = async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: "user" },
-                audio: false
-            });
-            if (videoRef.current) {
-                videoRef.current.srcObject = stream;
-            }
-        } catch (err) {
-            console.error(err)
-            alert("Không bật được camera. Hãy kiểm tra quyền camera!");
-        }
-    };
-
-    const stopCamera = () => {
-        const stream = videoRef.current?.srcObject as MediaStream;
-        stream?.getTracks().forEach(track => track.stop());
-    };
+    const username = localService.get("username") || "Sinh viên";
 
     const handleLogout = () => {
         commonService.logout()
@@ -43,33 +30,19 @@ export default function StudentPage() {
     };
 
     const captureAttendance = async () => {
-        const video = videoRef.current;
-        const canvas = canvasRef.current;
-        if (!video || !canvas || video.readyState < 2) {
-            setMsg("Camera chưa sẵn sàng");
-            return;
-        }
+        if (isCapturing) return;
 
-        setLoading(true);
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const ctx = canvas.getContext("2d");
-        ctx?.drawImage(video, 0, 0);
-
-        const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, "image/jpeg"));
-        if (!blob) {
-            setMsg("Không tạo được ảnh");
-            setLoading(false);
-            return;
-        }
-
-        const form = new FormData();
-        form.append("username", localStorage.getItem("username") || "");
-        form.append("file", blob, "face.jpg");
+        setLoading(true)
 
         try {
-            const res = await fetch("/api/attendance", { method: "POST", body: form });
-            const data = await res.json();
+            const blob = await handleCapture();
+            if (!blob) return;
+
+            const form = new FormData();
+            form.append("username", localStorage.getItem("username") || "");
+            form.append("file", blob, "face.jpg");
+
+            const data = await studentApi.attendance(form);
             setMsg(data.msg || data.status);
         } catch (e) {
             console.error(e)
@@ -92,8 +65,7 @@ export default function StudentPage() {
                     {username}
                 </div>
 
-                <video ref={videoRef} autoPlay playsInline className="w-full rounded-[10px] mt-[15px] bg-black" />
-                <canvas ref={canvasRef} className="hidden" />
+                <CaptureArea videoRef={videoRef} canvasRef={canvasRef} />
 
                 <button
                     onClick={captureAttendance}
