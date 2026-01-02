@@ -14,7 +14,7 @@ export default function StudentPage() {
     const { videoRef, canvasRef, isCapturing, captureError, handleCapture, startCamera, stopCamera } = useCapture();
 
     useEffect(() => {
-        console.log(captureError)
+        if (captureError) setMsg(captureError)
     }, [captureError])
 
     useEffect(() => {

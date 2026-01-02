@@ -22,7 +22,7 @@ export default function TeacherPage() {
     }, [startCamera, stopCamera, tab]);
 
     useEffect(() => {
-        setMsg(captureError)
+        if (captureError) setMsg(captureError)
     }, [captureError])
 
     // --- LOGIC ENROLL ---
