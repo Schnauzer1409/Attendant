@@ -13,6 +13,10 @@ import io
 import time
 import pickle
 
+from dotenv import load_dotenv
+import os
+from pathlib import Path
+
 import numpy as np
 from PIL import Image
 
@@ -23,16 +27,21 @@ from insightface.app import FaceAnalysis
 # KHAI BÁO THƯ MỤC
 # ===============================
 BASE_DIR = Path(__file__).resolve().parent
+load_dotenv(BASE_DIR / ".env.dev")
 
-SAVE_DIR = BASE_DIR / "uploads"
-ENROLL_DIR = SAVE_DIR / "enroll"        # ảnh đăng ký khuôn mặt
-ATT_DIR = SAVE_DIR / "attendance"       # ảnh điểm danh
-WM_DIR = BASE_DIR / "watermarks"        # ảnh watermark phòng
+WATERMARK_THRESHOLD = float(
+    os.getenv("WATERMARK_THRESHOLD", 0.15)
+)
 
-SAVE_DIR.mkdir(exist_ok=True)
-ENROLL_DIR.mkdir(exist_ok=True)
-ATT_DIR.mkdir(exist_ok=True)
-WM_DIR.mkdir(exist_ok=True)
+SAVE_DIR = BASE_DIR / os.getenv("UPLOAD_DIR", "uploads")
+ENROLL_DIR = SAVE_DIR / os.getenv("ENROLL_DIR", "enroll")        # ảnh đăng ký khuôn mặt
+ATT_DIR = SAVE_DIR / os.getenv("ATTENDANCE_DIR", "attendance")       # ảnh điểm danh
+WM_DIR = BASE_DIR / os.getenv("WATERMARK_DIR", "watermarks")        # ảnh watermark phòng
+
+SAVE_DIR.mkdir(parents=True, exist_ok=True)
+ENROLL_DIR.mkdir(parents=True, exist_ok=True)
+ATT_DIR.mkdir(parents=True, exist_ok=True)
+WM_DIR.mkdir(parents=True, exist_ok=True)
 
 
 # ===============================
@@ -65,7 +74,7 @@ def student_page():
 # ===============================
 # DATABASE SQLITE
 # ===============================
-DB_PATH = BASE_DIR / "attendance.db"
+DB_PATH = BASE_DIR / os.getenv("DB_PATH", "attendance.db")
 
 def get_conn():
     return sqlite3.connect(DB_PATH, check_same_thread=False)
@@ -126,8 +135,16 @@ add_default_users()
 # ===============================
 # LOAD MODEL NHẬN DIỆN
 # ===============================
-face_app = FaceAnalysis(name="buffalo_l")
-face_app.prepare(ctx_id=0, det_size=(640, 640))
+face_app = FaceAnalysis(name=os.getenv("FACE_MODEL", "buffalo_l"))
+
+det_size = tuple(
+    map(int, os.getenv("FACE_DET_SIZE", "640,640").split(","))
+)
+
+face_app.prepare(
+    ctx_id=int(os.getenv("FACE_CTX_ID", 0)),
+    det_size=det_size
+)
 
 
 # ===============================
@@ -400,3 +417,32 @@ def train_watermark_api(files: list[UploadFile] = File(...)):
             "status": "error",
             "msg": str(e)
         }
+    # ===============================
+# UPLOAD WATERMARK (GIÁO VIÊN)
+# ===============================
+@app.post("/api/upload_watermark")
+def upload_watermark(file: UploadFile = File(...)):
+    """
+    Upload watermark phòng học chính thức
+    """
+
+    try:
+        img_bytes = file.file.read()
+        img = np.array(Image.open(io.BytesIO(img_bytes)).convert("RGB"))
+
+        # Lưu watermark cố định
+        wm_path = WM_DIR / "room_watermark.jpg"
+        Image.fromarray(img).save(wm_path)
+
+        return {
+            "status": "ok",
+            "msg": "Upload watermark thành công",
+            "path": str(wm_path)
+        }
+
+    except Exception as e:
+        return {
+            "status": "error",
+            "msg": str(e)
+        }
+
